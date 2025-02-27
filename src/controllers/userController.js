@@ -7,29 +7,29 @@ const clerkClient = require("../config/clerkClient.js");
  */
 const getProfile = async (req, res) => {
   try {
-    console.log("req.headers.authorization",req.headers.authorization);
-    
-    console.log("Auth Middleware Data:", req.auth); // Debugging
-
-    const { userId, getToken } = req.auth; // Correctly extract user ID
-
-    console.log("user", userId, getToken());
-    
+    const { userId } = req.auth;
 
     if (!userId) {
-      return res.status(401).json({ code: 401, error: "Unauthorized" });
+      return res.status(401).json({ code: 401, message: "Unauthorized" });
     }
 
     const user = await clerkClient.users.getUser(userId);
 
-    res.json({
-      id: user.id,
-      email: user.emailAddresses[0].emailAddress,
-      name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+    // Get User Success
+    res.status(200).json({
+      code: 200,
+      message: "Success",
+      data: {
+        user: {
+          id: user.id,
+          username: user.username || "",
+          email: user.emailAddresses[0]?.emailAddress || "",
+        },
+      }
     });
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    res.status(500).json({ code: 400, message: "Failed to get user profile", error: error.message });
+    res.status(400).json({ code: 400, message: "Failed to get user profile", error: error.message });
   }
 };
 
@@ -41,21 +41,24 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.userId;
-    const { firstName, lastName } = req.body;
+    const { username } = req.body;
 
-    const updatedUser = await clerkClient.users.updateUser(userId, { firstName, lastName });
+    const updatedUser = await clerkClient.users.updateUser(userId, { username });
 
     res.json({
+      code: 200,
       message: "Profile updated successfully",
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.emailAddresses[0].emailAddress,
-        name: `${updatedUser.firstName} ${updatedUser.lastName}`,
-      },
+      data: {
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username || "",
+          email: updatedUser.emailAddresses[0]?.emailAddress || "",
+        },
+      }
     });
   } catch (error) {
     console.error("Error updating user profile:", error);
-    res.status(500).json({ error: "Failed to update user profile" });
+    res.status(400).json({ code: 400, message: "Failed to update user profile", error: error.message });
   }
 };
 

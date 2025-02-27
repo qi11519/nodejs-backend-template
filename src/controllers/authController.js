@@ -16,6 +16,7 @@ const register = async (req, res) => {
       password,
     })
     
+    // Register Success
     res.status(201).json({
       code: 201,
       message: "User created successfully",
@@ -25,7 +26,7 @@ const register = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Error registering:", error);
+    console.error("Error registering new user:", error);
     res.status(400).json({
       code: 400,
       message: "Registration failed",
@@ -42,46 +43,38 @@ const register = async (req, res) => {
  */
 const login = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, session_id } = req.body;
 
-    console.log("req.auth", req.auth);
+    if (!email || !session_id) {
+      return res.status(400).json({
+        code: 400,
+        message: "Email and session_id are required",
+      });
+    }
     
-
     // Find the user by email first
     const users = await clerkClient.users.getUserList({ emailAddress: [email] });
 
-    // If no user
+    // User not found
     if (users.data.length === 0) {
-      return res.status(404).json({ code: 400, message: "User not found" });
+      return res.status(404).json({ code: 404, message: "User not found" });
     }
 
     // Found user
     const user = users.data[0];
 
-    // Create a signIn token for the user
-    const signIn = await clerkClient.signInTokens.createSignInToken({
-      userId: user.id,
-      expiresInSeconds: 60 * 60 * 24 * 7,
-    });
-
     // Create a session token for the user
-    // const session2 = await clerkClient.sessions.getToken(
-    //   {template: "supabase"}
-    // );
+    const session = await clerkClient.sessions.getToken(
+        session_id,
+        "supabase"
+    );    
 
-    const session = await clerkClient.sessions.getSessionList(
-      { userId: signIn.userId }
-    );
-
-    console.log("session",session);
-    
-
-    res.json({
-        code: 201,
-        message: "Login successful",
-        data: {
-        // session: session,
-        token: signIn.token,
+    // Login Success
+    res.status(200).json({
+      code: 200,
+      message: "Login successful",
+      data: {
+        token: session.jwt,
         userId: user.id,
       }
     });

@@ -1,7 +1,17 @@
-const { requireAuth } = require("@clerk/express");
+const { clerkMiddleware } = require("@clerk/express");
 
-module.exports = requireAuth(
-    {
-        secretKey: process.env.CLERK_SECRET_KEY,
-      }
-);
+const authMiddleware = (req, res, next) => {
+  clerkMiddleware()(req, res, (err) => {
+    if (err) return next(err);
+
+    // Unauthenticated (Since request has no auth info)
+    if (!req.auth?.userId) {
+      return res.status(401).json({ code: 401, message: "Unauthorized" });
+    }
+    
+    // Proceed if authenticated
+    next(); 
+  });
+};
+
+module.exports = authMiddleware;
