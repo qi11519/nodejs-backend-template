@@ -21,7 +21,7 @@ const apiRoutes = require("./src/routes/api");
 app.use("/api", apiRoutes);
 
 app.get("/", (req, res) => {
-  res.status(200).json({ code: 200, message: "E-signature backend is running..." });
+  res.status(200).json({ code: 200, message: "Backend server is running..." });
 });
 
 /**

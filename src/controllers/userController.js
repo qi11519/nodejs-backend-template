@@ -1,4 +1,5 @@
 const clerkClient = require("../config/clerkClient.js");
+const supabaseClient = require("../config/supabase.js");
 
 /**
  *  Get user profile from Clerk
@@ -9,22 +10,28 @@ const getProfile = async (req, res) => {
   try {
     const { userId } = req.auth;
 
-    if (!userId) {
-      return res.status(401).json({ code: 401, message: "Unauthorized" });
+    // Query current user from Supabase
+    const { data, error } = await supabaseClient
+      .from("User")
+      .select("*")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      return res.status(404).json({ code: 404, message: "User not found" });
     }
 
-    const user = await clerkClient.users.getUser(userId);
+    // Pass back user (Without id)
+    const { id, ...rest } = data;
 
-    // Get User Success
+    // Success
     res.status(200).json({
       code: 200,
       message: "Success",
       data: {
-        user: {
-          id: user.id,
-          username: user.username || "",
-          email: user.emailAddresses[0]?.emailAddress || "",
-        },
+        user: { ...rest },
       }
     });
   } catch (error) {
@@ -40,20 +47,35 @@ const getProfile = async (req, res) => {
  */
 const updateProfile = async (req, res) => {
   try {
-    const userId = req.userId;
-    const { username } = req.body;
+    const { userId } = req.auth;
+    const { first_name, last_name, job_title, company_id } = req.body;
+    
+    const { data, error } = await supabaseClient
+      .from("User")
+      .update({
+        first_name,
+        last_name,
+        job_title,
+        company_id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId)
+      .select();
 
-    const updatedUser = await clerkClient.users.updateUser(userId, { username });
+    if (error) throw error;
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      return res.status(404).json({ code: 404, message: "User not found" });
+    }
 
+    // Pass back user (Without id & user id)
+    const { id, user_id, ...rest } = data[0];
+
+    // Success
     res.json({
       code: 200,
       message: "Profile updated successfully",
       data: {
-        user: {
-          id: updatedUser.id,
-          username: updatedUser.username || "",
-          email: updatedUser.emailAddresses[0]?.emailAddress || "",
-        },
+        user: { ...rest },
       }
     });
   } catch (error) {

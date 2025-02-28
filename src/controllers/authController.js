@@ -1,5 +1,5 @@
-const { getAuth } = require("@clerk/express");
 const clerkClient = require("../config/clerkClient.js");
+const supabaseClient = require("../config/supabase.js");
 
 /**
  * Signup - Create a new user
@@ -10,19 +10,32 @@ const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
+    // Create new acocunt in Clerk
     const newUser = await clerkClient.users.createUser({
       username: username,
       emailAddress: [email],
       password,
     })
-    
+    if (!newUser || !newUser.id) {
+      throw new Error("Failed to create user in Clerk");
+    }
+
+    // Create the account in Supabase along
+    const { data, error } = await supabaseClient
+      .from("User")
+      .insert([
+        {
+          user_id: newUser.id,
+          email: email,
+          role: "user"
+        },
+      ]);
+    if (error) throw error; 
+
     // Register Success
     res.status(201).json({
       code: 201,
-      message: "User created successfully",
-      data: {
-        userId: newUser.id,
-      },
+      message: "Registered successfully",
     });
 
   } catch (error) {
