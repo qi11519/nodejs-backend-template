@@ -7,15 +7,15 @@ const supabaseClient = require("../config/supabase.js");
  * @param {*} res 
  */
 const getAllUser = async (req, res) => {
-    try {
+  try {
     const { data, error } = await supabaseClient.from("User").select("*");
 
     if (error) throw error;
-        res.json({ code: 200, message: "Success", data: data });
-    } catch (error) {
+    res.json({ code: 200, message: "Success", data: data });
+  } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ code: 500, message: "Failed to retrieve users" });
-    }
+  }
 };
 
 /**
@@ -24,20 +24,20 @@ const getAllUser = async (req, res) => {
  * @param {*} res 
  */
 const getUser = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { data, error } = await supabaseClient.from("User").select("*").eq("user_id", id).single();
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseClient.from("User").select("*").eq("user_id", id).single();
 
-        if (error) {
-            return res.status(404).json({ code: 404, message: "User not found" });
-        }
-
-        res.json({ code: 200, message: "Success", data });
-    } catch (error) {
-        console.error("Error fetching user:", error);
-        res.status(500).json({ code: 500, message: "Failed to retrieve user" });
+    if (error) {
+        return res.status(404).json({ code: 404, message: "User not found" });
     }
-}
+
+    res.json({ code: 200, message: "Success", data });
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    res.status(500).json({ code: 500, message: "Failed to retrieve user" });
+  }
+};
 
 /**
  * Update user profile in Clerk
@@ -56,7 +56,7 @@ const updateUser = async (req, res) => {
     if (password) updateParam.password = password;
 
     if (Object.keys(updateParam).length > 0) {
-        const updatedUser = await clerkClient.users.updateUser(id, updateParam);
+      const updatedUser = await clerkClient.users.updateUser(id, updateParam);
     }
     
     // Update User in Supabase
