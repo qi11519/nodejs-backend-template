@@ -1,5 +1,5 @@
-const clerkClient = require("../config/clerkClient.js");
-const supabaseClient = require("../config/supabase.js");
+const authModel = require("../models/authModel.js")
+const userModel = require("../models/userModel.js")
 
 /**
  * Signup - Create a new user
@@ -10,29 +10,17 @@ const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // Create new acocunt in Clerk
-    const newUser = await clerkClient.users.createUser({
-      username: username,
-      emailAddress: [email],
-      password,
-    })
+    // Sign up new acocunt in Clerk
+    const newUser = await authModel.signUpUser(username, email, password);
     if (!newUser || !newUser.id) {
-      throw new Error("Failed to create user in Clerk");
+      throw new Error("Failed to create user");
     }
 
-    // Create the account in Supabase along
-    const { data, error } = await supabaseClient
-      .from("User")
-      .insert([
-        {
-          user_id: newUser.id,
-          email: email,
-          role: "user"
-        },
-      ]);
-    if (error) throw error; 
+    // Append the account in Supabase along
+    const { data, error } = userModel.createUser(newUser);
+    if (error) throw error;
 
-    // Register Success
+    // Success
     res.status(201).json({
       code: 201,
       message: "Registered successfully",
@@ -65,11 +53,11 @@ const login = async (req, res) => {
       });
     }
     
-    // Find the user by email first
-    const users = await clerkClient.users.getUserList({ emailAddress: [email] });
+    // Find the user by email first from Clerk
+    const users = await authModel.getUserList(email);
 
     // User not found
-    if (users.data.length === 0) {
+    if (users?.data && (Array.isArray(users.data) && users.data.length === 0)) {
       return res.status(404).json({ code: 404, message: "User not found" });
     }
 
@@ -77,17 +65,14 @@ const login = async (req, res) => {
     const user = users.data[0];
 
     // Create a session token for the user
-    const session = await clerkClient.sessions.getToken(
-        session_id,
-        "supabase"
-    );    
+    const session = await authModel.createSession(session_id, "supabase");
 
-    // Login Success
+    // Success
     res.status(200).json({
       code: 200,
       message: "Login successful",
       data: {
-        token: session.jwt,
+        token: session?.jwt,
         userId: user.id,
       }
     });

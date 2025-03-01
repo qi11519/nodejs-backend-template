@@ -1,5 +1,5 @@
 const clerkClient = require("../config/clerkClient.js");
-const supabaseClient = require("../config/supabase.js");
+const userModel = require("../models/userModel.js")
 
 /**
  *  Get user profile from Clerk
@@ -8,8 +8,7 @@ const supabaseClient = require("../config/supabase.js");
  */
 const getAllUser = async (req, res) => {
   try {
-    const { data, error } = await supabaseClient.from("User").select("*");
-
+    const { data, error } = await userModel.getAllUsers();
     if (error) throw error;
     res.json({ code: 200, message: "Success", data: data });
   } catch (error) {
@@ -26,13 +25,13 @@ const getAllUser = async (req, res) => {
 const getUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await supabaseClient.from("User").select("*").eq("user_id", id).single();
+    const { data, error } = await userModel.getUserById(id);
 
     if (error) {
-        return res.status(404).json({ code: 404, message: "User not found" });
+      return res.status(404).json({ code: 404, message: "User not found" });
     }
 
-    res.json({ code: 200, message: "Success", data });
+    res.json({ code: 200, message: "Success", data: data });
   } catch (error) {
     console.error("Error fetching user:", error);
     res.status(500).json({ code: 500, message: "Failed to retrieve user" });
@@ -56,23 +55,11 @@ const updateUser = async (req, res) => {
     if (password) updateParam.password = password;
 
     if (Object.keys(updateParam).length > 0) {
-      const updatedUser = await clerkClient.users.updateUser(id, updateParam);
+      await clerkClient.users.updateUser(id, updateParam);
     }
     
     // Update User in Supabase
-    const { data, error } = await supabaseClient
-      .from("User")
-      .update({
-        first_name,
-        last_name,
-        job_title,
-        company_id,
-        role,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", id)
-      .select();
-
+    const { data, error } = await userModel.updateUserById(id, { first_name, last_name, job_title, company_id, role });
     if (error) throw error;
     if (!data || (Array.isArray(data) && data.length === 0)) {
       return res.status(404).json({ code: 404, message: "User not found" });
