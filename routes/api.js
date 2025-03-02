@@ -1,8 +1,9 @@
 const express = require("express");
 // Import all routes
-const authRoutes = require("./auth");
-const adminRoutes = require("./admin");
-const userRoutes = require("./user");
+const authRoutes = require("./api/auth");
+const adminRoutes = require("./api/admin");
+const userRoutes = require("./api/user");
+const documentRoutes = require("./api/document");
 
 const router = express.Router();
 
@@ -14,5 +15,8 @@ router.use("/admin", adminRoutes);
 
 // User Route
 router.use("/user", userRoutes);
+
+// Document Route
+router.use("/document", documentRoutes);
 
 module.exports = router;

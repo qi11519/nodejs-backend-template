@@ -1,5 +1,5 @@
-const authModel = require("../models/authModel.js")
-const userModel = require("../models/userModel.js")
+const AuthModel = require("../models/authModel.js")
+const UserModel = require("../models/userModel.js")
 
 /**
  * Signup - Create a new user
@@ -11,13 +11,13 @@ const register = async (req, res) => {
     const { username, email, password } = req.body;
 
     // Sign up new acocunt in Clerk
-    const newUser = await authModel.signUpUser(username, email, password);
+    const newUser = await AuthModel.signUpUser(username, email, password);
     if (!newUser || !newUser.id) {
-      throw new Error("Failed to create user");
+      throw new Error({ errors: [ { message: "Failed to create user" } ] });
     }
 
     // Append the account in Supabase along
-    const { data, error } = userModel.createUser(newUser);
+    const { data, error } = await UserModel.createUser(newUser);
     if (error) throw error;
 
     // Success
@@ -27,11 +27,14 @@ const register = async (req, res) => {
     });
 
   } catch (error) {
+    let errorMessage = error.message;
+    if(error?.errors && Array.isArray(error.errors)) errorMessage = error.errors[0].message;
+
     console.error("Error registering new user:", error);
     res.status(400).json({
       code: 400,
       message: "Registration failed",
-      error: error.message,
+      error: errorMessage,
     });
   }
 };
@@ -45,40 +48,48 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, session_id } = req.body;
-
+    
     if (!email || !session_id) {
       return res.status(400).json({
         code: 400,
         message: "Email and session_id are required",
       });
     }
-    
-    // Find the user by email first from Clerk
-    const users = await authModel.getUserList(email);
-
-    // User not found
-    if (users?.data && (Array.isArray(users.data) && users.data.length === 0)) {
-      return res.status(404).json({ code: 404, message: "User not found" });
-    }
-
-    // Found user
-    const user = users.data[0];
 
     // Create a session token for the user
-    const session = await authModel.createSession(session_id, "supabase");
+    const token = await AuthModel.createSession(session_id, "supabase");
+
+    // Get the user from this session(for user info)
+    const session = await AuthModel.getSession(session_id);
+    const { data, error } = await UserModel.getUserById(session?.userId);
+    if (error) throw error;
+    if (!data) {
+      return res.status(400).json({ code: 400, message: "Invalid session" });
+    }
+    // If token is used by another email/not the session owner
+    if(email !== data.email){
+      return res.status(400).json({ code: 400, message: "Invalid session" });
+    }
 
     // Success
     res.status(200).json({
       code: 200,
       message: "Login successful",
       data: {
-        token: session?.jwt,
-        userId: user.id,
+        token: token?.jwt,
+        user_id: session?.userId,
       }
     });
   } catch (error) {
+    let errorMessage = error.message;
+    if(error?.errors && Array.isArray(error.errors)) errorMessage = error.errors[0].message;
+
     console.error("Error logging in:", error);
-    res.status(500).json({ code: 400, message: "Login Failed", error: error.message });
+    res.status(500).json({
+      code: 400, 
+      message: "Login Failed", 
+      error: errorMessage, 
+    });
   }
 };
 

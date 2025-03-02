@@ -1,4 +1,4 @@
-const userModel = require("../models/userModel.js")
+const UserModel = require("../models/userModel.js")
 
 /**
  *  Get user profile from Clerk
@@ -10,7 +10,7 @@ const getProfile = async (req, res) => {
     const { userId } = req.auth;
 
     // Query current user from Supabase
-    const { data, error } = await userModel.getUserById(userId);
+    const { data, error } = await UserModel.getUserById(userId);
     if (error) throw error;
     if (!data) {
       return res.status(404).json({ code: 404, message: "User not found" });
@@ -44,14 +44,14 @@ const updateProfile = async (req, res) => {
     const { first_name, last_name, job_title, company_id } = req.body;
     
     // Update user by user id
-    const { data, error } = await userModel.updateUserById(userId, { first_name, last_name, job_title, company_id });
+    const { data, error } = await UserModel.updateUserById(userId, { first_name, last_name, job_title, company_id });
     if (error) throw error;
     if (!data || (Array.isArray(data) && data.length === 0)) {
       return res.status(404).json({ code: 404, message: "User not found" });
     }
-
+    
     // Pass back user (Without id & user id)
-    const { id, user_id, ...rest } = data[0];
+    const { id, user_id, ...rest } = data;
 
     // Success
     res.json({

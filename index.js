@@ -4,7 +4,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
 
-const { createClerkClient, clerkMiddleware } = require("@clerk/express");
+const { clerkMiddleware } = require("@clerk/express");
 
 const app = express();
 
@@ -13,7 +13,6 @@ app.use(cors()); // CORS
 app.use(helmet()); // Security Middleware
 app.use(morgan("dev")); // HTTP Request Logger
 app.use(express.json());
-
 app.use(clerkMiddleware());
 
 // Register all routes under /api

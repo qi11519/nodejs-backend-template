@@ -1,5 +1,5 @@
 const clerkClient = require("../config/clerkClient.js");
-const userModel = require("../models/userModel.js")
+const UserModel = require("../models/userModel.js")
 
 /**
  *  Get user profile from Clerk
@@ -8,7 +8,7 @@ const userModel = require("../models/userModel.js")
  */
 const getAllUser = async (req, res) => {
   try {
-    const { data, error } = await userModel.getAllUsers();
+    const { data, error } = await UserModel.getAllUsers();
     if (error) throw error;
     res.json({ code: 200, message: "Success", data: data });
   } catch (error) {
@@ -25,7 +25,7 @@ const getAllUser = async (req, res) => {
 const getUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await userModel.getUserById(id);
+    const { data, error } = await UserModel.getUserById(id);
 
     if (error) {
       return res.status(404).json({ code: 404, message: "User not found" });
@@ -59,7 +59,7 @@ const updateUser = async (req, res) => {
     }
     
     // Update User in Supabase
-    const { data, error } = await userModel.updateUserById(id, { first_name, last_name, job_title, company_id, role });
+    const { data, error } = await UserModel.updateUserById(id, { first_name, last_name, job_title, company_id, role });
     if (error) throw error;
     if (!data || (Array.isArray(data) && data.length === 0)) {
       return res.status(404).json({ code: 404, message: "User not found" });

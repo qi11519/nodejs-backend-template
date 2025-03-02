@@ -6,11 +6,11 @@ const supabaseClient = require("../config/supabase.js");
 //   email: string;
 //   first_name: string | null;
 //   last_name: string | null;
-//   created_at: string;
-//   updated_at: string;
 //   job_title: string | null;
 //   company_id: string;
-//   role: "user" | "admin" | "sender";
+//   role: "user" | "sender" | "admin" | "superadmin";
+//   created_at: string;
+//   updated_at: string;
 // }
 
 /**
@@ -18,18 +18,18 @@ const supabaseClient = require("../config/supabase.js");
  * @param userId - The Clerk User
  * @returns User || null
  */
-const createUser = async (newUser) => {
-    const { data, error } = await supabaseClient
-      .from("User")
-      .insert([
-        {
-          user_id: newUser.id,
-          email: email,
-          role: "user"
-        },
-      ]);
-    
-    return { data, error };
+const createUser = async (newUser) => { 
+  const { data, error } = await supabaseClient
+    .from("User")
+    .insert([
+      {
+        user_id: newUser.id,
+        email: newUser.emailAddresses[0].emailAddress,
+        role: "user"
+      },
+    ]);
+
+  return { data, error };
 };
 
 /**

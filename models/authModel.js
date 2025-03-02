@@ -1,5 +1,11 @@
 const clerkClient = require("../config/clerkClient.js");
 
+// interface ClerkAccount {
+//   username: string;
+//   email: string;
+//   password: string;
+// }
+
 /**
  * Create user in Clerk
  * @param username
@@ -17,9 +23,9 @@ const signUpUser = async (username, email, password) => {
 };
 
 /**
- * Fetch user by email from Clerk
- * @param email
- * @returns `{ data[] } || {} || null`
+ * Create a user session
+ * @param session_id
+ * @returns {*}
  */
 const createSession = async (session_id, template) => {
     const data = await clerkClient.sessions.getToken(
@@ -28,6 +34,19 @@ const createSession = async (session_id, template) => {
     );    
     return data;
 };
+
+/**
+ * Fetch user session by session id
+ * @param session_id
+ * @returns {*}
+ */
+const getSession = async (session_id) => {
+    const data = await clerkClient.sessions.getSession(
+        session_id,
+    );    
+    return data;
+};
+
 
 /**
  * Fetch user by email from Clerk
@@ -39,4 +58,4 @@ const getUserList = async (email) => {
     return data;
 };
 
-module.exports = { signUpUser, createSession, getUserList };
+module.exports = { signUpUser, createSession, getSession, getUserList };
