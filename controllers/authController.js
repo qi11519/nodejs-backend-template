@@ -85,7 +85,7 @@ const login = async (req, res) => {
     if(error?.errors && Array.isArray(error.errors)) errorMessage = error.errors[0].message;
 
     console.error("Error logging in:", error);
-    res.status(500).json({
+    res.status(400).json({
       code: 400, 
       message: "Login Failed", 
       error: errorMessage, 

@@ -23,6 +23,68 @@ const signUpUser = async (username, email, password) => {
 };
 
 /**
+ * Get user in Clerk
+ * @param userId
+ * @returns {*}
+ */
+const getUser = async (userId) => {
+    const data = await clerkClient.users.getUser(userId);
+    return data;
+};
+
+/**
+ * Update user account in Clerk
+ * @param userId
+ * @param `{ username, password }`
+ * @returns {*}
+ */
+const updateUser = async (userId, updateParam) => {
+    const data = await clerkClient.users.updateUser(userId, updateParam);
+    return data;
+};
+
+/**
+ * Update primary email of user account in Clerk
+ * @param emailId
+ * @returns {*}
+ */
+const updateEmail = async (userId, emailId, newEmailAddress) => {
+    // Bind new email to user
+    const createResponse = await clerkClient.emailAddresses.createEmailAddress({
+        userId: userId,
+        emailAddress: newEmailAddress,
+        primary: true,
+        verified: true,
+      })
+      console.log("bababa");
+      
+    // Remove old email
+    const deleteResponse = await clerkClient.emailAddresses.deleteEmailAddress(emailId);
+    console.log("obobob");
+    return createResponse;
+};
+
+/**
+ * Change password of account in Clerk
+ * @param userId
+ * @returns {*}
+ */
+const changePassword = async (userId, newPassword) => {
+    const data = await clerkClient.users.updateUser(userId, { password: newPassword })
+    return data;
+};
+
+/**
+ * Remove user in Clerk
+ * @param userId
+ * @returns {*}
+ */
+const removeUser = async (userId) => {
+    const data = await clerkClient.users.deleteUser(userId)
+    return data;
+};
+
+/**
  * Create a user session
  * @param session_id
  * @returns {*}
@@ -58,4 +120,4 @@ const getUserList = async (email) => {
     return data;
 };
 
-module.exports = { signUpUser, createSession, getSession, getUserList };
+module.exports = { signUpUser, getUser, updateUser, updateEmail, changePassword, removeUser, createSession, getSession, getUserList };

@@ -13,27 +13,16 @@ const supabaseClient = require("../config/supabase.js");
 // - is_private (boolean, not null, default: false)
 
 /**
- * Get all documents (Admins only)
- * @returns {Array} List of all documents
- */
-const getAllDocuments = async () => {
-    const { data, error } = await supabaseClient
-        .from("Document")
-        .select("*");
-
-    return { data, error };
-};
-
-/**
- * Get documents accessible by a specific user
+ * Get all documents
  * @param user_id
  * @param role
  * @returns List of documents
  */
-const getAllDocumentsByUser = async (user_id, role) => {
-    let query = supabaseClient.from("Document").select("*");
+const getAllDocuments = async (user_id, role) => {
+    let query = supabaseClient
+        .from("Document")
+        .select("*");
 
-    // User and sender can only see those related to them only
     if (role === "user") {
         query = query.eq("signer_id", user_id);
     } else if (role === "sender") {
@@ -41,6 +30,7 @@ const getAllDocumentsByUser = async (user_id, role) => {
     }
 
     const { data, error } = await query;
+
     return { data, error };
 };
 
@@ -122,21 +112,22 @@ const uploadDocument = async (filePath, buffer, mimetype) => {
       .from("Document")
       .upload(filePath, buffer, { contentType: mimetype });
   
-    if(error) {
-        throw new Error({ code: 400, message: "Failed to upload document", error: error.message });
-    }
-  
-    // Get the public URL
-    const { data:documentUrl } = supabaseClient.storage.from("Document").getPublicUrl(data?.path);
-    return documentUrl?.publicUrl;
+    return { data, error };
 };
+
+const getDocumentAccessLink = async (fileName) => {
+    const { data:signedUrl } = await supabaseClient.storage.from("Document").createSignedUrls(fileName, 604800);
+    console.log("signedDocumentUrl",signedUrl);
+
+    return signedUrl;
+}
 
 module.exports = {
     getAllDocuments,
-    getAllDocumentsByUser,
     getDocumentById,
     createDocument,
     updateDocumentById,
     deleteDocumentById,
     uploadDocument,
+    getDocumentAccessLink,
 };

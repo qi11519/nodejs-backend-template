@@ -7,12 +7,16 @@ const router = express.Router();
 // Store file in memory temporarily
 const upload = multer({ storage: multer.memoryStorage() });
 
-// These routes require auth
-router.get("/document", authMiddleware, getAllDocuments);
+// User, Sender, Admin
+router.get("/documents", authMiddleware, getAllDocuments);
 router.get("/document/:id", authMiddleware, getDocument);
+// User
+
+// Sender
 router.post("/create/:id", authMiddleware, createDocument);
-router.put("/update", authMiddleware, updateDocument);
-router.delete("/delete/:id", authMiddleware, deleteDocument);
 router.post("/upload", authMiddleware, checkRole("sender"), upload.single("file"), uploadDocument);
+// Sender, Admin
+router.put("/update/:id", authMiddleware, updateDocument);
+router.delete("/delete/:id", authMiddleware, deleteDocument);
 
 module.exports = router;

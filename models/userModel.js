@@ -66,6 +66,21 @@ const updateUserById = async (user_id, updates) => {
 };
 
 /**
+ * Delete a user by user_id from Supabase
+ * @param userId - The Clerk user_id
+ * @returns User || null
+ */
+const deleteUser = async (user_id) => {
+  const { data, error } = await supabaseClient
+    .from("User")
+    .delete()
+    .eq("user_id", user_id);
+  
+  return { data, error };
+};
+
+
+/**
  * Get all users
  * @returns User[]
  */
@@ -77,4 +92,4 @@ const getAllUsers =  async () => {
     return { data, error };
 }
 
-module.exports = { createUser, getUserById, updateUserById, getAllUsers };
+module.exports = { createUser, getUserById, updateUserById, deleteUser, getAllUsers };
