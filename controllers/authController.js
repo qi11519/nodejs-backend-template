@@ -21,8 +21,8 @@ const register = async (req, res) => {
     if (error) throw error;
 
     // Success
-    res.status(201).json({
-      code: 201,
+    return res.status(200).json({
+      code: 200,
       message: "Registered successfully",
     });
 
@@ -31,8 +31,8 @@ const register = async (req, res) => {
     if(error?.errors && Array.isArray(error.errors)) errorMessage = error.errors[0].message;
 
     console.error("Error registering new user:", error);
-    res.status(400).json({
-      code: 400,
+    return res.status(500).json({
+      code: 500,
       message: "Registration failed",
       error: errorMessage,
     });
@@ -72,7 +72,7 @@ const login = async (req, res) => {
     }
 
     // Success
-    res.status(200).json({
+    return res.status(200).json({
       code: 200,
       message: "Login successful",
       data: {
@@ -85,8 +85,8 @@ const login = async (req, res) => {
     if(error?.errors && Array.isArray(error.errors)) errorMessage = error.errors[0].message;
 
     console.error("Error logging in:", error);
-    res.status(400).json({
-      code: 400, 
+    return res.status(500).json({
+      code: 500, 
       message: "Login Failed", 
       error: errorMessage, 
     });

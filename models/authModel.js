@@ -56,11 +56,9 @@ const updateEmail = async (userId, emailId, newEmailAddress) => {
         primary: true,
         verified: true,
       })
-      console.log("bababa");
       
     // Remove old email
     const deleteResponse = await clerkClient.emailAddresses.deleteEmailAddress(emailId);
-    console.log("obobob");
     return createResponse;
 };
 

@@ -1,3 +1,4 @@
+const { v4: uuidv4 } = require('uuid');
 const UserModel = require("../models/userModel.js")
 const DocumentModel = require("../models/documentModel.js");
 
@@ -19,10 +20,10 @@ const getAllDocuments = async (req, res) => {
     // Get all documents
     const { data, error } = await DocumentModel.getAllDocuments(userData?.user_id, userData?.role);
     if (error) throw error;
-    res.json({ code: 200, message: "Success", data });
+    return res.status(200).json({ code: 200, message: "Success", data });
   } catch (error) {
     console.error("Error fetching documents:", error);
-    res.status(400).json({ code: 400, message: "Failed to retrieve documents", error: error.message });
+    return res.status(500).json({ code: 500, message: "Failed to retrieve documents", error: error.message });
   }
 };
 
@@ -44,13 +45,14 @@ const getDocument = async (req, res) => {
     // Get document
     const { id } = req.params;
     const { data, error } = await DocumentModel.getDocumentById(id, userData?.user_id, userData?.role);
-    if (error || !data) {
+    if (error) throw error;
+    if (!data) {
       return res.status(404).json({ code: 404, message: "Document not found" });
     }
-    res.json({ code: 200, message: "Success", data });
+    return res.status(200).json({ code: 200, message: "Success", data });
   } catch (error) {
     console.error("Error fetching document:", error);
-    res.status(400).json({ code: 400, message: "Failed to retrieve document", error: error.message });
+    return res.status(500).json({ code: 500, message: "Failed to retrieve document", error: error.message });
   }
 };
 
@@ -61,8 +63,27 @@ const getDocument = async (req, res) => {
  */
 const createDocument = async (req, res) => {
   try {
-    const { creator_id, name, status, content, company_id, signer_id, is_private } = req.body;
-    const { data, error } = await DocumentModel.createDocument({
+    // Query current user who uploads the document
+    const { userId } = req.auth;
+    const { data: userData, error: userError } = await UserModel.getUserById(userId);
+    if (userError) throw userError;
+    if (!userData) {
+      return res.status(404).json({ code: 404, message: "User not found" });
+    }
+
+    const { user_id: creator_id, company_id, role } = userData;
+    const { document_id, name, status, content, signer_id, is_private, file_name } = req.body;
+
+    // Check if this document id exist already
+    const { data, error } = await DocumentModel.getDocumentById(document_id, creator_id, role);
+    if (error) throw error;
+    if (data) {
+      return res.status(400).json({ code: 400, message: "Document id already exist" });
+    }
+
+    // Create document record in Supabase
+    const { data:documentData, error:documentError } = await DocumentModel.createDocument({
+      id: document_id,
       creator_id,
       name,
       status,
@@ -70,12 +91,17 @@ const createDocument = async (req, res) => {
       company_id,
       signer_id,
       is_private,
+      file_name,
     });
-    if (error) throw error;
-    res.status(201).json({ code: 201, message: "Document created successfully", data });
+    if (documentError) throw documentError;
+
+    const { error: versionError } = await DocumentModel.createDocumentVersion(documentData);
+    if (versionError) throw versionError;
+
+    return res.status(200).json({ code: 200, message: "Document created successfully", data: documentData });
   } catch (error) {
     console.error("Error creating document:", error);
-    res.status(400).json({ code: 400, message: "Failed to create document", error: error.message });
+    return res.status(500).json({ code: 500, message: "Failed to create document", error: error.message });
   }
 };
 
@@ -86,22 +112,45 @@ const createDocument = async (req, res) => {
  */
 const updateDocument = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name, status, content, signer_id, is_private } = req.body;
-    const { data, error } = await DocumentModel.updateDocumentById(id, {
-      name,
-      status,
-      content,
-      signer_id,
-      is_private,
-    });
-    if (error || !data) {
+    // Query current user from Supabase
+    const { userId } = req.auth;
+    const { data:userData, error:userError } = await UserModel.getUserById(userId);
+    if (userError) throw userError;
+    if (!userData) {
+      return res.status(404).json({ code: 404, message: "User not found" });
+    }
+
+    const { id:document_id } = req.params;
+    const { role } = userData;
+    const { name, status, content, signer_id, is_private, file_name } = req.body;
+
+    // Check if this file name exist in the Supabase Storage
+    const { data:findData, error:findError } = await DocumentModel.findDocument(document_id, file_name);
+    if (findError) throw findError;
+
+    const params = { name, status, content, signer_id, is_private }
+    if (findData && Array.isArray(findData) && findData.length < 1){
+      params.file_name = file_name;
+    }
+
+    // Update Document Info
+    const { data:updateData, error:updateError } = await DocumentModel.updateDocumentById(document_id, userId, role, params);
+    if (updateError) throw updateError;
+    
+    // Create now version
+    if(params.file_name){
+      const { error: versionError } = await DocumentModel.createDocumentVersion(updateData[0]);
+      if (versionError) throw versionError;
+    }
+
+    if (!updateData) {
       return res.status(404).json({ code: 404, message: "Document not found or update failed" });
     }
-    res.json({ code: 200, message: "Document updated successfully" });
+
+    return res.status(200).json({ code: 200, message: "Document updated successfully" });
   } catch (error) {
     console.error("Error updating document:", error);
-    res.status(400).json({ code: 400, message: "Failed to update document", error: error.message });
+    return res.status(500).json({ code: 500, message: "Failed to update document", error: error.message });
   }
 };
 
@@ -112,77 +161,180 @@ const updateDocument = async (req, res) => {
  */
 const deleteDocument = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { error } = await DocumentModel.deleteDocumentById(id);
-    if (error) {
-      return res.status(404).json({ code: 404, message: "Document not found or delete failed" });
-    }
-    res.json({ code: 200, message: "Document deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting document:", error);
-    res.status(400).json({ code: 400, message: "Failed to delete document", error: error.message });
-  }
-};
-
-/**
- * Upload a new document
- */
-const uploadDocument = async (req, res) => {
-  try {    
-    const { originalname, buffer, mimetype } = req.file; // File from request
-    const { name, is_private, signer_id } = req.body;   
+    // Query current user from Supabase
     const { userId } = req.auth;
-
-    // Query current user who uploads the document
-    const { data: userData, error: userError } = await UserModel.getUserById(userId);
+    const { data:userData, error:userError } = await UserModel.getUserById(userId);
     if (userError) throw userError;
     if (!userData) {
       return res.status(404).json({ code: 404, message: "User not found" });
     }
-    const { user_id: creator_id, company_id } = userData;
 
-    // Check upload file status
-    if (!originalname || !buffer) {
-      return res.status(400).json({ code: 400, message: "No file uploaded" });
+    // Get document
+    const { id } = req.params;
+    const { data, error } = await DocumentModel.getDocumentById(id, userData?.user_id, userData?.role);
+    if (error) throw error;
+    if (!data) {
+      return res.status(404).json({ code: 404, message: "Document not found" });
     }
 
-    // Upload to Supabase Storage then get file url in Supabase
-    const filePath = `${Date.now()}_${originalname}`;
-    const { error:uploadError } = await DocumentModel.uploadDocument(filePath, buffer, mimetype);
-    if(uploadError) {
-      throw new Error({ code: 400, message: "Failed to upload document", error: uploadError.message });
-    }
+    // Delete row from "DocumentHistory" table
+    const { error:historyError } = await DocumentModel.deleteDocumentHistory(id);
+    if(historyError) throw historyError;
 
-    // Save document details in Supabase Database
-    const { data:documentData, error:documentError } = await DocumentModel.createDocument({
-      creator_id,
-      // company_id,
-      name,
-      status: "draft",
-      signer_id,
-      is_private: is_private,
-      file_name: filePath,
-    });
-    if (documentError) throw documentError;
-    if (!documentData) {
-      return res.status(400).json({ code: 400, message: "Failed to upload document", error: error.message });
-    }
+    // Delete row from "Document" table
+    const { error:documentError } = await DocumentModel.deleteDocumentById(id, userData?.user_id, userData.role);
+    if(documentError) throw documentError;
 
-    res.json({ code: 200, message: "Document uploaded successfully", data: documentData });
+    // Delete files folder from storage
+    const { error:folderError } = await DocumentModel.deleteDocumentFolder(id);
+    if(folderError) throw folderError;
+
+    return res.status(200).json({ code: 200, message: "Document deleted successfully" });
   } catch (error) {
-    console.error("Error uploading document:", error);
-    res.status(400).json({ code: 400, message: "Failed to upload document", error: error.message });
+    console.error("Error deleting document:", error);
+    return res.status(500).json({ code: 500, message: "Failed to delete document", error: error.message });
   }
 };
 
-// const getDocumentUrl = async (req, res) => {
-//   try {
-//     const req.auth
-    
-//   } catch (error) {
-//     console.error("Error obtaining document url:", error);
-//     res.status(400).json({ code: 400, message: "Failed to obtain document url", error: error.message });
-//   }
-// }
+/**
+ * Upload a new file for create document
+ */
+const uploadDocumentForCreate = async (req, res) => {
+  try {
+    // Check upload file status
+    if (!req?.file) return res.status(400).json({ code: 400, message: "File is required" });
+    const { originalname, buffer, mimetype } = req.file; // File from request
 
-module.exports = { getAllDocuments, getDocument, createDocument, updateDocument, deleteDocument, uploadDocument };
+    // Check upload file status
+    if (!originalname || !buffer) return res.status(400).json({ code: 400, message: "File is required" });
+    
+    // Generates random UUID for document and file name prefix
+    const documentId = uuidv4();
+    const uniqueId = uuidv4();
+    const fileName = `${uniqueId}-${originalname}`;
+
+    // Upload to Supabase Storage then get file url in Supabase
+    const { error:uploadError } = await DocumentModel.uploadDocument(`${documentId}/${fileName}`, buffer, mimetype);
+    if(uploadError) throw uploadError;
+
+    // Success
+    return res.status(200).json({ 
+      code: 200, 
+      message: "Document uploaded successfully", 
+      data: {
+        document_id: documentId,
+        file_name: fileName,
+      }
+    });
+  } catch (error) {
+    console.error("Error uploading document:", error);
+    return res.status(500).json({ code: 500, message: "Failed to upload document", error: error.message });
+  }
+};
+
+/**
+ * Upload a new file for update document
+ */
+const uploadDocumentForUpdate = async (req, res) => {
+  try {
+    const { id:documentId } = req.params;
+
+    // Check upload file status
+    if (!req?.file) return res.status(400).json({ code: 400, message: "File is required" });
+    const { originalname, buffer, mimetype } = req.file; // File from request
+
+    // Check upload file status
+    if (!originalname || !buffer) return res.status(400).json({ code: 400, message: "File is required" });
+    
+    // Generates random UUID for document and file name prefix
+    const uniqueId = uuidv4();
+    const fileName = `${uniqueId}-${originalname}`;
+
+    // Upload to Supabase Storage then get file url in Supabase
+    const { error:uploadError } = await DocumentModel.uploadDocument(`${documentId}/${fileName}`, buffer, mimetype);
+    if(uploadError) throw uploadError;
+
+    // Success
+    return res.status(200).json({ 
+      code: 200, 
+      message: "Document uploaded successfully", 
+      data: {
+        document_id: documentId,
+        file_name: fileName,
+      }
+    });
+  } catch (error) {
+    console.error("Error uploading document:", error);
+    return res.status(500).json({ code: 500, message: "Failed to upload document", error: error.message });
+  }
+};
+
+const getDocumentUrl = async (req, res) => {
+  try {
+    // Query current user from Supabase
+    const { userId } = req.auth;
+    const { data:userData, error:userError } = await UserModel.getUserById(userId);
+    if (userError) throw userError;
+    if (!userData) {
+      return res.status(404).json({ code: 404, message: "User not found" });
+    }
+
+    // Get document
+    const { id } = req.params;
+    const { data:documentData, error:documentError } = await DocumentModel.getDocumentById(id, userData?.user_id, userData?.role);
+    if (documentError) throw documentError;
+    if (!documentData) {
+      return res.status(404).json({ code: 404, message: "Document not found" });
+    }
+    
+    // Get Signed Access Link
+    const { data:accessData, error:accessError } = await DocumentModel.getDocumentAccessLink(`${documentData.id}/${documentData.file_name}`);
+    if (accessError) throw accessError;
+    if (!accessData || !accessData.length === 0 || !accessData[0]?.signedUrl) {
+      return res.status(404).json({ code: 404, message: "Document not found" });
+    }
+
+    // Success
+    return res.status(200).json({ 
+      code: 200, 
+      data: {
+        access_url: accessData[0]?.signedUrl
+      }
+    });
+    
+  } catch (error) {
+    console.error("Error obtaining document url:", error);
+    return res.status(400).json({ code: 400, message: "Failed to obtain document url", error: error.message });
+  }
+}
+
+/**
+ * Get all document versions
+ * @param {*} req 
+ * @param {*} res 
+ */
+const getAllDocumentVersions = async (req, res) => {
+  try {
+    // Get all document versions
+    const { id: document_id } = req.params;
+    const { data, error } = await DocumentModel.getAllDocumentVersions(document_id);
+    if (error) throw error;
+
+    return res.status(200).json({ code: 200, message: "Success", data });
+  } catch (error) {
+    console.error("Error fetching documents:", error);
+    return res.status(500).json({ code: 500, message: "Failed to retrieve documents", error: error.message });
+  }
+};
+
+module.exports = { 
+  getAllDocuments, 
+  getDocument, 
+  createDocument, 
+  updateDocument, 
+  deleteDocument, 
+  uploadDocumentForCreate, 
+  uploadDocumentForUpdate, 
+  getDocumentUrl,
+  getAllDocumentVersions
+};

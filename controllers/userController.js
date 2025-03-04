@@ -21,7 +21,7 @@ const getProfile = async (req, res) => {
     const { id, ...rest } = data;
 
     // Success
-    res.status(200).json({
+    return res.status(200).json({
       code: 200,
       message: "Success",
       data: {
@@ -30,7 +30,7 @@ const getProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    res.status(400).json({ code: 400, message: "Failed to get user profile", error: error.message });
+    return res.status(500).json({ code: 500, message: "Failed to get user profile", error: error.message });
   }
 };
 
@@ -55,7 +55,7 @@ const updateProfile = async (req, res) => {
     const { id, user_id, ...rest } = data;
 
     // Success
-    res.json({
+    return res.status(200).json({
       code: 200,
       message: "Profile updated successfully",
       data: {
@@ -64,7 +64,7 @@ const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating user profile:", error);
-    res.status(400).json({ code: 400, message: "Failed to update user profile", error: error.message });
+    return res.status(500).json({ code: 500, message: "Failed to update user profile", error: error.message });
   }
 };
 
@@ -86,11 +86,11 @@ const updateEmail = async (req, res) => {
     const { data, error } = await UserModel.updateUserById(userId, { email });
     if (error) throw error;
     if (!data || (Array.isArray(data) && data.length === 0)) {
-      return res.status(404).json({ code: 404, message: "Failed to update email address" });
+      return res.status(500).json({ code: 500, message: "Failed to update email address" });
     }
 
     // Success
-    res.status(200).json({
+    return res.status(200).json({
       code: 200,
       message: "Success",
     });
@@ -99,7 +99,7 @@ const updateEmail = async (req, res) => {
     if(error?.errors && Array.isArray(error.errors)) errorMessage = error.errors[0].message;
 
     console.error("Error updating email address:", error);
-    res.status(400).json({ code: 400, message: "Failed to update email address", error: errorMessage });
+    return res.status(500).json({ code: 500, message: "Failed to update email address", error: errorMessage });
   }
 };
 
@@ -117,7 +117,7 @@ const changePassword = async (req, res) => {
     await AuthModel.changePassword(userId, password);
 
     // Success
-    res.status(200).json({
+    return res.status(200).json({
       code: 200,
       message: "Success",
     });
@@ -126,7 +126,7 @@ const changePassword = async (req, res) => {
     if(error?.errors && Array.isArray(error.errors)) errorMessage = error.errors[0].message;
 
     console.error("Error changing password:", error);
-    res.status(400).json({ code: 400, message: "Failed to change password", error: errorMessage });
+    return res.status(500).json({ code: 500, message: "Failed to change password", error: errorMessage });
   }
 };
 

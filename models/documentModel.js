@@ -56,12 +56,12 @@ const getDocumentById = async (documentId, user_id, role) => {
 };
 
 /**
- * Create a new document (Only Senders or Admins)
+ * Create a new document
  * @param documentData - Document details
  * @returns Created document
  */
 const createDocument = async (documentData) => {
-    const { data, error } = await supabaseClient.from("Document").insert([documentData]).select();
+    const { data, error } = await supabaseClient.from("Document").insert([documentData]).select().limit(1).maybeSingle();
     return { data, error };
 };
 
@@ -92,16 +92,36 @@ const updateDocumentById = async (documentId, user_id, role, updatedData) => {
  * @param role
  * @returns Success
  */
-const deleteDocumentById = async (documentId, user_id, role) => {
-    let query = supabaseClient.from("Document").delete().eq("id", documentId);
+const deleteDocumentById = async (documentId) => {
+    const { data, error } = await supabaseClient.from("Document").delete().eq("id", documentId);
+    return { data, error };
+};
 
-    // Senders can only delete documents they created
-    if (role === "sender") {
-        query = query.eq("creator_id", user_id);
-    }
+/**
+ * Delete a document history
+ * @param documentId
+ */
+const deleteDocumentHistory= async (documentId) => {
+    const { data, error } = await supabaseClient.from("DocumentHistory").delete().eq("document_id", documentId);
+    return { data, error };
+};
 
-    const { error } = await query;
-    return { success: !error, error };
+/**
+ * Delete a document folder in Supabase Storage
+ * @param documentId - document_id act as file's prefix, aka. Its folder
+ */
+const deleteDocumentFolder= async (documentId) => {
+    const { data, error } = await supabaseClient.storage.from("Document").list(documentId);
+
+    // Extract file names to delete
+    const filePaths = data.map(file => `${documentId}/${file.name}`);
+
+    // Delete all files inside the folder
+    const { data: deleteData, error: deleteError } = await supabaseClient.storage
+      .from("Document")
+      .remove(filePaths);
+
+    return { data: deleteData, deleteError };
 };
 
 /**
@@ -115,12 +135,72 @@ const uploadDocument = async (filePath, buffer, mimetype) => {
     return { data, error };
 };
 
-const getDocumentAccessLink = async (fileName) => {
-    const { data:signedUrl } = await supabaseClient.storage.from("Document").createSignedUrls(fileName, 604800);
-    console.log("signedDocumentUrl",signedUrl);
+/**
+ * Find the document existence in Supabase Storage based on file name
+ */
+const findDocument = async (path_folder, file_name) => {
+    const { data, error } = await supabaseClient.storage
+      .from("Document")
+      .list(path_folder,);
+    if(error) return { data, error };
 
-    return signedUrl;
+    // Filter the file name
+    const file = data.filter(file => file.file_name === file_name);
+    return { data: file || null, error };
+};
+
+/**
+ * Create access link for document in Supabase Storage
+ */
+const getDocumentAccessLink = async (filePath) => {
+    const { data, error } = await supabaseClient.storage.from("Document").createSignedUrls(filePath, 60);
+    return { data, error };
 }
+
+/**
+ * Create a history version record of a updated document
+ */
+const createDocumentVersion = async (document) => {
+    // Get the latest version number (if any)
+    const { data: versions, error: versionError } = await supabaseClient
+        .from("DocumentHistory")
+        .select("version")
+        .eq("document_id", document.id)
+        .order("version", { ascending: false })
+        .limit(1); // Get the highest version number
+
+    if (versionError) return { versions, versionError };
+
+    // Determine new version number (if none exists, start with 1)
+    const latestVersion = versions.length ? versions[0].version : 0;
+    const newVersion = latestVersion === 0 ? 1 : latestVersion + 1;
+
+    // Add the new version into DocumentHistory
+    const { data: newEntry, error: insertError } = await supabaseClient
+        .from("DocumentHistory")
+        .insert([{ document_id: document.id, version: newVersion, file_name: document.file_name }])
+        .select()
+        .single();
+
+    return { data: newEntry, error: insertError };
+}
+
+/**
+ * Get all documents
+ * @param user_id
+ * @param role
+ * @returns List of documents
+ */
+const getAllDocumentVersions = async (document_id) => {
+    let query = supabaseClient
+        .from("DocumentHistory")
+        .select("*")
+        .eq("document_id", document_id);
+
+    const { data, error } = await query;
+
+    return { data, error };
+};
 
 module.exports = {
     getAllDocuments,
@@ -128,6 +208,11 @@ module.exports = {
     createDocument,
     updateDocumentById,
     deleteDocumentById,
+    deleteDocumentHistory,
+    deleteDocumentFolder,
     uploadDocument,
+    findDocument,
     getDocumentAccessLink,
+    createDocumentVersion,
+    getAllDocumentVersions,
 };

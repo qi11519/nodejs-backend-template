@@ -10,10 +10,10 @@ const getAllUser = async (req, res) => {
   try {
     const { data, error } = await UserModel.getAllUsers();
     if (error) throw error;
-    res.json({ code: 200, message: "Success", data: data });
+    return res.status(200).json({ code: 200, message: "Success", data: data });
   } catch (error) {
     console.error("Error fetching users:", error);
-    res.status(400).json({ code: 400, message: "Failed to retrieve users" });
+    return res.status(500).json({ code: 500, message: "Failed to retrieve users" });
   }
 };
 
@@ -31,10 +31,10 @@ const getUser = async (req, res) => {
       return res.status(404).json({ code: 404, message: "User not found" });
     }
 
-    res.json({ code: 200, message: "Success", data: data });
+    return res.status(200).json({ code: 200, message: "Success", data: data });
   } catch (error) {
     console.error("Error fetching user:", error);
-    res.status(400).json({ code: 400, message: "Failed to retrieve user" });
+    return res.status(500).json({ code: 500, message: "Failed to retrieve user" });
   }
 };
 
@@ -70,7 +70,7 @@ const updateUser = async (req, res) => {
     }
 
     // Success
-    res.json({
+    return res.status(200).json({
       code: 200,
       message: "Profile updated successfully",
     });
@@ -79,7 +79,7 @@ const updateUser = async (req, res) => {
     if(error?.errors && Array.isArray(error.errors)) errorMessage = error.errors[0].message;
 
     console.error("Error updating user profile:", error);
-    res.status(400).json({ code: 400, message: "Failed to update user profile", error: errorMessage });
+    return res.status(500).json({ code: 500, message: "Failed to update user profile", error: errorMessage });
   }
 };
 
@@ -88,15 +88,15 @@ const deleteUser = async(req, res)=> {
       const { id } = req.params;
   
       // Remove an acocunt in Clerk
-      const response = await AuthModel.removeUser(id);
+      await AuthModel.removeUser(id);
 
       // Delete the user in Supabase along
-      const { data, error } = await UserModel.deleteUser(id);
+      const { error } = await UserModel.deleteUser(id);
       if (error) throw error;
   
       // Success
-      res.status(201).json({
-        code: 201,
+      return res.status(200).json({
+        code: 200,
         message: "User deleted successfully",
       });
   
@@ -105,8 +105,8 @@ const deleteUser = async(req, res)=> {
       if(error?.errors && Array.isArray(error.errors)) errorMessage = error.errors[0].message;
   
       console.error("Error deleting user:", error);
-      res.status(400).json({
-        code: 400,
+      return res.status(500).json({
+        code: 500,
         message: "Delete failed",
         error: errorMessage,
       });
