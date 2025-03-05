@@ -197,9 +197,10 @@ const deleteDocument = async (req, res) => {
 };
 
 /**
- * Upload a new file for create document
+ * Upload a new file for create/update document
+ * @params id - documentId (If update document only)
  */
-const uploadDocumentForCreate = async (req, res) => {
+const uploadDocument = async (req, res) => {
   try {
     // Check upload file status
     if (!req?.file) return res.status(400).json({ code: 400, message: "File is required" });
@@ -208,8 +209,8 @@ const uploadDocumentForCreate = async (req, res) => {
     // Check upload file status
     if (!originalname || !buffer) return res.status(400).json({ code: 400, message: "File is required" });
     
-    // Generates random UUID for document and file name prefix
-    const documentId = uuidv4();
+    // Generates random UUID for document(if create only) and file name prefix
+    const documentId = documentIdFromParams || uuidv4();
     const uniqueId = uuidv4();
     const fileName = `${uniqueId}-${originalname}`;
 
@@ -233,42 +234,11 @@ const uploadDocumentForCreate = async (req, res) => {
 };
 
 /**
- * Upload a new file for update document
+ * Get temporary access url of document for download
+ * @param {*} req 
+ * @param {*} res 
+ * @returns 
  */
-const uploadDocumentForUpdate = async (req, res) => {
-  try {
-    const { id:documentId } = req.params;
-
-    // Check upload file status
-    if (!req?.file) return res.status(400).json({ code: 400, message: "File is required" });
-    const { originalname, buffer, mimetype } = req.file; // File from request
-
-    // Check upload file status
-    if (!originalname || !buffer) return res.status(400).json({ code: 400, message: "File is required" });
-    
-    // Generates random UUID for document and file name prefix
-    const uniqueId = uuidv4();
-    const fileName = `${uniqueId}-${originalname}`;
-
-    // Upload to Supabase Storage then get file url in Supabase
-    const { error:uploadError } = await DocumentModel.uploadDocument(`${documentId}/${fileName}`, buffer, mimetype);
-    if(uploadError) throw uploadError;
-
-    // Success
-    return res.status(200).json({ 
-      code: 200, 
-      message: "Document uploaded successfully", 
-      data: {
-        document_id: documentId,
-        file_name: fileName,
-      }
-    });
-  } catch (error) {
-    console.error("Error uploading document:", error);
-    return res.status(500).json({ code: 500, message: "Failed to upload document", error: error.message });
-  }
-};
-
 const getDocumentUrl = async (req, res) => {
   try {
     // Query current user from Supabase
@@ -333,8 +303,7 @@ module.exports = {
   createDocument, 
   updateDocument, 
   deleteDocument, 
-  uploadDocumentForCreate, 
-  uploadDocumentForUpdate, 
+  uploadDocument, 
   getDocumentUrl,
   getAllDocumentVersions
 };

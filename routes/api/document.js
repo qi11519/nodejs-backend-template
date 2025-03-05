@@ -7,8 +7,7 @@ const {
     createDocument, 
     updateDocument, 
     deleteDocument, 
-    uploadDocumentForCreate, 
-    uploadDocumentForUpdate, 
+    uploadDocument,
     getDocumentUrl,
     getAllDocumentVersions
 } = require("../../controllers/documentController");
@@ -26,8 +25,8 @@ router.get("/versions/:id", authMiddleware, getAllDocumentVersions);
 
 // Sender
 router.post("/create", authMiddleware, createDocument);
-router.post("/upload", authMiddleware, checkRole("sender"), upload.single("file"), uploadDocumentForCreate);
-router.post("/upload/:id", authMiddleware, checkRole("sender"), upload.single("file"), uploadDocumentForUpdate);
+router.post("/upload", authMiddleware, checkRole("sender"), upload.single("file"), uploadDocument);
+router.post("/upload/:id", authMiddleware, checkRole("sender"), upload.single("file"), uploadDocument);
 // Sender, Admin
 router.put("/document/:id", authMiddleware, updateDocument);
 router.delete("/document/:id", authMiddleware, deleteDocument);
