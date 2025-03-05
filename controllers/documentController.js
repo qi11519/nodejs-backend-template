@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const UserModel = require("../models/userModel.js")
 const DocumentModel = require("../models/documentModel.js");
+const { convertPdfPagesToImages } = require("../services/documentService.js");
 
 /**
  * Get all documents
@@ -202,12 +203,20 @@ const deleteDocument = async (req, res) => {
  */
 const uploadDocument = async (req, res) => {
   try {
+    const { id: documentIdFromParams } = req.params;
+
     // Check upload file status
     if (!req?.file) return res.status(400).json({ code: 400, message: "File is required" });
-    const { originalname, buffer, mimetype } = req.file; // File from request
+    const { originalname, buffer, mimetype, size } = req.file; // File from request
 
     // Check upload file status
     if (!originalname || !buffer) return res.status(400).json({ code: 400, message: "File is required" });
+
+    // If file type is not PDF
+    if (mimetype !== "application/pdf") return res.status(400).json({ code: 400, message: "File type is not pdf" });
+
+    // If file size too big, should not exceed 4 MB
+    if (size >= 4000000) return res.status(400).json({ code: 400, message: "File size must not exceed 4MB" });
     
     // Generates random UUID for document(if create only) and file name prefix
     const documentId = documentIdFromParams || uuidv4();
@@ -218,6 +227,9 @@ const uploadDocument = async (req, res) => {
     const { error:uploadError } = await DocumentModel.uploadDocument(`${documentId}/${fileName}`, buffer, mimetype);
     if(uploadError) throw uploadError;
 
+    // Convert all pages in document into each independant image
+    const imageUrls = await convertPdfPagesToImages(documentId, fileName, buffer)
+
     // Success
     return res.status(200).json({ 
       code: 200, 
@@ -225,6 +237,7 @@ const uploadDocument = async (req, res) => {
       data: {
         document_id: documentId,
         file_name: fileName,
+        images: imageUrls, // List of image URLs for preview
       }
     });
   } catch (error) {

@@ -153,7 +153,7 @@ const findDocument = async (path_folder, file_name) => {
  * Create access link for document in Supabase Storage
  */
 const getDocumentAccessLink = async (filePath) => {
-    const { data, error } = await supabaseClient.storage.from("Document").createSignedUrls(filePath, 60);
+    const { data, error } = await supabaseClient.storage.from("Document").createSignedUrls(filePath, 86400);
     return { data, error };
 }
 
